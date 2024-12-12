@@ -67,7 +67,7 @@ CHECK_RB:
 }
 char** generateParenthesis(int n, int* returnSize) {//leetcode 22
 	const char P[] = "()";
-	int LEN[] = { 1, 2, 5, 14, 42, 132, 429, 1430 };
+	int LEN[] = { 1, 2, 5, 14, 42, 132, 429, 1430 };//Catalan Number = Binomial[2n,n]/n+1
 	int len = LEN[n - 1];
 	*returnSize = len;
 	int strlen_Zero = n * 2 + 1;
