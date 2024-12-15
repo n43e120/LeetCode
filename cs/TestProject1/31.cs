@@ -1,5 +1,4 @@
-﻿using static ConsoleApp1.TestHelper;
-public class Solution
+﻿file class Solution
 {
 	public void NextPermutation(int[] nums)//leetcode 31
 	{
@@ -25,32 +24,19 @@ public class Solution
 		return Permute(nums);
 	}
 }
-internal static class Program
+[TestClass]
+public sealed class Test31
 {
-	static void T(int[] input, int[] expect)
+	void T(int[] input, int[] expect)
 	{
-		PRINT_LIST(input);
-		Print("->");
-		PRINT_LIST(expect);
 		Solution x = new();
 		var f = x.NextPermutation;
-		var actual = input.Clone() as int[];
-		f(actual);
-		if (IsEqualSeq(expect, actual))
-		{
-			COLOR_PRINT(ConsoleColor.Green, () => { Print("ok"); });
-		}
-		else
-		{
-			Print(" != ");
-			COLOR_PRINT(ConsoleColor.Red, () =>
-			{
-				Print(actual);
-			});
-		}
-		Console.WriteLine();
+		var a = (int[])input.Clone();
+		f(a);
+		ConsoleApp1.TestHelper.T(a, expect);
 	}
-	static void Main(string[] args)
+	[TestMethod]
+	public void TestMethod1()
 	{
 		T([1], [1]);
 

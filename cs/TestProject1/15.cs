@@ -1,5 +1,5 @@
 ﻿
-public class Solution
+file class Solution
 {
 	const int NONEXIST = -1;
 	public int binary_search(ReadOnlySpan<int> A, int target)
@@ -304,108 +304,16 @@ public class Solution
 		}
 	}
 }
-
-internal static class Program
+[TestClass]
+public sealed class Test15
 {
-	static void COLOR_PRINT(ConsoleColor color, Action f)
+	[TestMethod]
+	public void TestMethod1()
 	{
-		Console.ForegroundColor = color;
-		f();
-		Console.ResetColor();
-	}
-	static void PRINT_LIST(IList<int> list)
-	{
-		Console.Write("[");
-		int i = 0;
-		for (; i < list.Count - 1; i++)
-		{
-			Console.Write(list[i]);
-			Console.Write(',');
-		}
-		if (i < list.Count)
-		{
-			Console.Write(list[i]);
-		}
-		Console.Write("]");
-	}
-	static void PRINT_LISTLIST(IList<IList<int>> ll)
-	{
-		Console.Write("[");
-		int i = 0;
-		for (; i < ll.Count - 1; i++)
-		{
-			PRINT_LIST(ll[i]);
-			Console.Write(',');
-		}
-		if (i < ll.Count)
-		{
-			PRINT_LIST(ll[i]);
-		}
-		Console.Write("]");
-	}
-	static bool IsEqual(IList<int> A, IList<int> B)
-	{
-		if (A.Count != B.Count)
-		{
-			return false;
-		}
-		var la = A.ToList();
-		la.Sort();
-		var lb = B.ToList();
-		lb.Sort();
-		for (int j = 0; j < 3; j++)
-		{
-			if (la[j] != lb[j])
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-	static bool IsEqual(IList<IList<int>> A, IList<IList<int>> B)
-	{
-		if (A.Count != B.Count)
-		{
-			return false;
-		}
-		for (int i = 0; i < A.Count; i++)
-		{
-			var a = A[i];
-			var b = B[i];
-			if (!IsEqual(a, b))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-	static void T(int[] input, IList<IList<int>> expect)
-	{
-		PRINT_LIST(input);
-		Console.Write("->");
-		PRINT_LISTLIST(expect);
-
 		Solution x = new();
 		var f = x.ThreeSum;
-		var actual = f(input);
-		if (IsEqual(expect, actual))
-		{
-			COLOR_PRINT(ConsoleColor.Green, () => { Console.Write("ok"); });
-		}
-		else
-		{
-			Console.Write(" != ");
-			COLOR_PRINT(ConsoleColor.Red, () =>
-			{
-				PRINT_LISTLIST(actual);
-			});
-		}
-		Console.WriteLine();
-	}
-	static void Main(string[] args)
-	{
-		T([-1, 0, 1, 2, -1, -4], [[-1, -1, 2], [-1, 0, 1]]);
-		T([0, 1, 1], []);
-		T([0, 0, 0], [[0, 0, 0]]);
+		T(f([-1, 0, 1, 2, -1, -4]), [[-1, -1, 2], [-1, 0, 1]]);
+		T(f([0, 1, 1]), []);
+		T(f([0, 0, 0]), [[0, 0, 0]]);
 	}
 }

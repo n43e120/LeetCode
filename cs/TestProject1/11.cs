@@ -1,6 +1,4 @@
-﻿
-using static ConsoleApp1.TestHelper;
-public class Solution
+﻿file class Solution
 {
 	public int MaxArea(int[] height)
 	{
@@ -58,35 +56,15 @@ public class Solution
 		return max;
 	}
 }
-
-internal static class Program
+[TestClass]
+public sealed class Test11
 {
-	static void T(int[] input, int expect)
+	[TestMethod]
+	public void TestMethod1()
 	{
-		Print(input);
-		Print("->");
-		Print(expect);
-
 		Solution x = new();
 		var f = x.MaxArea;
-		var actual = f(input);
-		if (expect == actual)
-		{
-			COLOR_PRINT(ConsoleColor.Green, () => { Print("ok"); });
-		}
-		else
-		{
-			Print(" != ");
-			COLOR_PRINT(ConsoleColor.Red, () =>
-			{
-				Print(actual);
-			});
-		}
-		Console.WriteLine();
-	}
-	static void Main(string[] args)
-	{
-		T([1, 1], 1);
-		T([1, 8, 6, 2, 5, 4, 8, 3, 7], 49);
+		T(f([1, 1]), 1);
+		T(f([1, 8, 6, 2, 5, 4, 8, 3, 7]), 49);
 	}
 }

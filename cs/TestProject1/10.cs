@@ -1,5 +1,4 @@
-﻿using static ConsoleApp1.TestHelper;
-public class Solution
+﻿file class Solution
 {
 	int MinLen(ReadOnlySpan<char> A)
 	{
@@ -170,45 +169,26 @@ public class Solution
 		return IsMatch_inner(A, B);
 	}
 }
-
-internal static class Program
+[TestClass]
+public class Test10
 {
-	static void T(string input, string pattern, bool expect)
+	[TestMethod]
+	public void TestMethod1()
 	{
-		;
-		Print($"Regex.IsMatch({input}, {pattern})=={expect}");
-
 		Solution x = new();
 		var f = x.IsMatch;
-		var actual = f(input, pattern);
-		if (IsEqual(expect, actual))
-		{
-			COLOR_PRINT(ConsoleColor.Green, () => { Print("ok"); });
-		}
-		else
-		{
-			Print(" != ");
-			COLOR_PRINT(ConsoleColor.Red, () =>
-			{
-				Print(actual);
-			});
-		}
-		Console.WriteLine();
-	}
-	static void Main(string[] args)
-	{
-		T("", "", true);
-		T("", ".*", true);
-		T("a", ".", true);
-		T("ab", "..", true);
-		T("aa", "a", false);
-		T("aa", "a*", true);
-		T("ab", ".*", true);
-		T("aaaaaaaaaab", "a*", false);
-		T("a", "a*a", true);
-		T("bbbba", ".*a*a", true);
-		T("a", ".*.", true);
-		T("baabbbaccbccacacc", "c*..b*a*a.*a..*c", true);
-		T("aaa", "ab*ac*a", true);
+		T(f("", ""), true);
+		T(f("", ".*"), true);
+		T(f("a", "."), true);
+		T(f("ab", ".."), true);
+		T(f("aa", "a"), false);
+		T(f("aa", "a*"), true);
+		T(f("ab", ".*"), true);
+		T(f("aaaaaaaaaab", "a*"), false);
+		T(f("a", "a*a"), true);
+		T(f("bbbba", ".*a*a"), true);
+		T(f("a", ".*."), true);
+		T(f("baabbbaccbccacacc", "c*..b*a*a.*a..*c"), true);
+		T(f("aaa", "ab*ac*a"), true);
 	}
 }

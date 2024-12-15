@@ -1,5 +1,4 @@
-﻿using static ConsoleApp1.TestHelper;
-public class Solution
+﻿file class Solution
 {
 	public int Divide(int dividend, int divisor)
 	{
@@ -76,32 +75,16 @@ public class Solution
 		}
 	}
 }
-internal static class Program
+[TestClass]
+public sealed class Test29
 {
-	static void T((int, int) input, int expect)
+	[TestMethod]
+	public void TestMethod1()
 	{
-		Print($"{input.Item1}/{input.Item2}={expect}");
-		Solution x = new();
+		var x = new Solution();
 		var f = x.Divide;
-		var actual = f(input.Item1, input.Item2);
-		if (IsEqual(expect, actual))
-		{
-			COLOR_PRINT(ConsoleColor.Green, () => { Print(" pass"); });
-		}
-		else
-		{
-			Print(" != ");
-			COLOR_PRINT(ConsoleColor.Red, () =>
-			{
-				Print(actual);
-			});
-		}
-		Console.WriteLine();
-	}
-	static void Main(string[] args)
-	{
-		//T((10, 3), 3);
-		T((-2147483648, 2), -2147483648 / 2);
-		//T((-2147483648, -1), int.MaxValue);
+		//T(f(10, 3), 3);
+		T(f(-2147483648, 2), -2147483648 / 2);
+		//T(f(-2147483648, -1), int.MaxValue);
 	}
 }

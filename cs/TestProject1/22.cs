@@ -1,8 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Nodes;
-using static ConsoleApp1.TestHelper;
-public class Solution
+﻿file class Solution
 {
 	const string P = "()";
 	IEnumerable<string> ExpandNode(string s)
@@ -57,37 +53,16 @@ public class Solution
 		goto AGAIN;
 	}
 }
-internal static class Program
+[TestClass]
+public sealed class Test22
 {
-	static void T(int input, IList<string> expect)
+	[TestMethod]
+	public void TestMethod1()
 	{
-		Print($"f@{input}=");
-		PRINT_LIST(expect);
-		Solution x = new();
+		var x = new Solution();
 		var f = x.GenerateParenthesis;
-		var actual = f(input);
-		if (IsEqualSet(expect, actual))
-		{
-			COLOR_PRINT(ConsoleColor.Green, () => { Print(" pass"); });
-		}
-		else
-		{
-			Print(" != ");
-			COLOR_PRINT(ConsoleColor.Red, () =>
-			{
-				PRINT_LIST(actual);
-			});
-		}
-		Console.WriteLine();
-	}
-	static void Main(string[] args)
-	{
-		T(1, ["()"]);
-		T(2, ["()()", "(())"]);
-		T(3, ["((()))", "(()())", "(())()", "()(())", "()()()"]);
-
-		//Solution x = new();
-		//var f = x.GenerateParenthesis(8);
-		//PRINT_LIST(f);
+		T(f(1), ["()"]);
+		S(f(2), ["()()", "(())"]);
+		S(f(3), ["((()))", "(()())", "(())()", "()(())", "()()()"]);
 	}
 }
