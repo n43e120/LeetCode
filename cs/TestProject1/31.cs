@@ -2,10 +2,11 @@
 {
 	public void NextPermutation(int[] nums)//leetcode 31
 	{
-		var b = Permutation.Next(nums);
-		if (!b)
+		var max = nums.Max();
+		var A = nums.AsSpan();
+		if (!Combinatorics.Permutation.Next(A, max))
 		{
-			nums.AsSpan().Sort();
+			A.Sort();
 		}
 	}
 	public IList<IList<int>> Permute(int[] nums)//leetcode 46
@@ -13,7 +14,7 @@
 		List<IList<int>> list = new();
 		var x = nums.ToList();
 		x.Sort();
-		foreach (var A in Permutation.All(x.ToArray()))
+		foreach (var A in Combinatorics.Permutation.All(x.ToArray()))
 		{
 			list.Add((IList<int>)A.Clone());
 		}

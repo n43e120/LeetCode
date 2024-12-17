@@ -1,8 +1,8 @@
-﻿
+﻿namespace Combinatorics;
 public static class Permutation
 {
 	// arr: [1,2,3], [1,3,2], [2,1,3], [2,3,1], [3,1,2], [3,2,1].
-	static int BinarySearchForNextHead(Span<int> A, int target)
+	static int NextHeadIndex(Span<int> A, int target)
 	{
 		//never return -1
 		//target == new head >= old head+1
@@ -36,63 +36,68 @@ public static class Permutation
 		} while (true);
 	}
 	static void Swap(ref int a, ref int b) => (b, a) = (a, b);
-	public static bool Next(int[] A)
+	public static bool Next(Span<int> A, int max)
 	{
 		int cnt = A.Length;
 		switch (cnt)
 		{
-			case 0:
-			case 1:
+			case < 2:
 				return false;
 		}
 		int a, b, i;
 		b = cnt - 1;
 		a = b - 1;
-		if (A[a] < A[b]) //12->21
+		if (A[a] < A[b]) //...12->...21
 		{
 			Swap(ref A[a], ref A[b]);
 			return true;
 		}
-		var max = A.Max();
 	AGAIN:
 		b = a - 1;
-		if (b < 0) //reach left end, 1 or 321 or 231 -> 312
+		if (b < 0) //a=0, reach lbound
 		{
 
-			if (A[a] == max) return false;//reach last permu 321 or 21
+			if (A[a] == max) return false;//already last permu 321
 			i = a;
-			goto ALTERNATE_HEAD;
+			goto CARRY;
 		}
 		if (A[b] < A[a])//24
 		{
 			i = b;
-			goto ALTERNATE_HEAD;
+			goto CARRY;
 		}
 		a = b - 1;
-		if (a < 0) //reach left end, 1 or 321 or 231 -> 312
+		if (a < 0) //reach lbound
 		{
-			if (A[b] == max) return false;//reach last permu 321 or 21
+			if (A[b] == max) return false;//last permu
 			i = b;
-			goto ALTERNATE_HEAD;
+			goto CARRY;
 		}
 		if (A[a] < A[b])//24
 		{
 			i = a;
-			goto ALTERNATE_HEAD;
+			goto CARRY;
 		}
 		goto AGAIN;
-	ALTERNATE_HEAD:
-		//A.Slice(i+1).Sort(); or A.Slice(i+1).Reverse();
-		var l = i + 1;
-		var r = cnt - 1;
-		while (l < r)
-		{
-			Swap(ref A[l], ref A[r]);
-			l++;
-			r--;
+	CARRY:
+		var tail = A.Slice(i + 1);
+		{//reset A.Slice(i+1) in order
+
+			//A.Slice(i+1).Sort();
+			//var l = i + 1;
+			//var r = cnt - 1;
+			//while (l < r)
+			//{
+			//	Swap(ref A[l], ref A[r]);
+			//	l++;
+			//	r--;
+			//}
+			tail.Reverse();//shortcut, A already in reverse order
 		}
-		int iNewHead = BinarySearchForNextHead(A.AsSpan().Slice(i + 1), A[i] + 1);
-		Swap(ref A[i + 1 + iNewHead], ref A[i]);
+		{//change to next head
+			int iNewHead = NextHeadIndex(tail, A[i] + 1);
+			Swap(ref tail[iNewHead], ref A[i]);
+		}
 		return true;
 	}
 	public static int[] First(int cnt)
@@ -106,28 +111,31 @@ public static class Permutation
 	}
 	public static IEnumerable<int[]> All(int cnt)
 	{
-		int[] A = First(cnt);
-		yield return A;
-		while (Next(A))
+		int[] nums = First(cnt);
+		var max = cnt;
+		//var A = nums.AsSpan();
+		yield return nums;
+		while (Next(nums, max))
 		{
-			yield return A;
+			yield return nums;
 		};
 	}
-	public static IEnumerable<int[]> All(int[] num)
+	public static IEnumerable<int[]> All(int[] nums)
 	{
-		int[] A = num;
-		yield return A;
-		while (Next(A))
+		var max = nums.Max();
+		//var A = nums.AsSpan();
+		yield return nums;
+		while (Next(nums, max))
 		{
-			yield return A;
+			yield return nums;
 		};
 	}
 	public static int[] FromNum(UInt64 index, int cnt)
 	{
-		return new int[index];
+		throw new NotImplementedException();
 	}
 	public static UInt64 ToNum(int[] p)
 	{
-		return 0;
+		throw new NotImplementedException();
 	}
 }

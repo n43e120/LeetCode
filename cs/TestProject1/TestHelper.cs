@@ -46,7 +46,7 @@ namespace ConsoleApp1
 			}
 			Console.Write("]");
 		}
-		static void Print<T>(IList<IList<T>> ll)
+		public static void Print<T>(IList<IList<T>> ll)
 		{
 			Console.Write("[");
 			int i = 0;
@@ -219,8 +219,9 @@ namespace ConsoleApp1
 			}
 		}
 		public static void T<X>(
-		X expect,
-		X actual) where X : IEquatable<X>
+		X actual,
+		X expect
+		) where X : IEquatable<X>
 		{
 			if (expect.Equals(actual))
 			{
