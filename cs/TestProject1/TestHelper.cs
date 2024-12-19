@@ -1,8 +1,9 @@
 ﻿#define MSTEST
 global using static ConsoleApp1.TestHelper;
+using System.Text;
 namespace ConsoleApp1
 {
-	internal static class TestHelper
+	public static class TestHelper
 	{
 		public static void COLOR_PRINT(ConsoleColor color, Action f)
 		{
@@ -30,6 +31,23 @@ namespace ConsoleApp1
 					Console.Write(x);
 					break;
 			}
+		}
+		public static string ConvertToString<T>(IList<T> list)
+		{
+			var sb = new StringBuilder();
+			sb.Append('[');
+			int i = 0;
+			for (; i < list.Count - 1; i++)
+			{
+				sb.Append(list[i]);
+				sb.Append(',');
+			}
+			if (i < list.Count)
+			{
+				sb.Append(list[i]);
+			}
+			sb.Append(']');
+			return sb.ToString();
 		}
 		public static void Print<T>(IList<T> list)
 		{
