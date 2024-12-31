@@ -1,5 +1,6 @@
 ﻿
 using NQueen;
+namespace TestProject1;
 [TestClass]
 public unsafe sealed class TestNativeOp
 {
@@ -127,6 +128,28 @@ public unsafe sealed class TestNativeOp
 }
 
 
+[TestClass]
+public unsafe sealed class TestMultiBlockOp
+{
+	[TestMethod]
+	public void TestSetBitRange()
+	{
+		var fExpect = (ulong x, int i, int cnt) =>
+		{
+			NativeOp<ulong>.SetBitRange(&x, i, cnt);
+			return NQueenData.BitMapToString(&x, 8, 8);
+		};
+		var fActual = (ulong x, int i, int cnt) =>
+		{
+			MultiBlockOp<byte>.SetBitRange((byte*)&x, i, cnt);
+			return NQueenData.BitMapToString(&x, 8, 8);
+		};
+		for (int iRow = 7; iRow < 8; iRow++)
+		{
+			T(fActual(0, iRow * 8, 8), fExpect(0, iRow * 8, 8));
+		}
+	}
+}
 [TestClass]
 public sealed unsafe class Test_SparseBitArrayQueen
 {

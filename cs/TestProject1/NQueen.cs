@@ -11,15 +11,26 @@ namespace NQueen;
 /// <typeparam name="T"></typeparam>
 public unsafe static class NativeOp<T> where T : unmanaged, IBinaryInteger<T>//IBitwiseOperators<T, T, T>, IShiftOperators<T, int, T>, INumberBase<T>
 {
-	public readonly static Func<T, byte[]> fConvert_T_To_Bytes;
+	//public readonly static Func<T, byte[]> fConvert_T_To_Bytes;
 	static NativeOp()
 	{
-		fConvert_T_To_Bytes = typeof(BitConverter).GetMethod("GetBytes", [typeof(T)]).CreateDelegate<Func<T, byte[]>>();
+		//fConvert_T_To_Bytes = typeof(BitConverter).GetMethod("GetBytes", [typeof(T)]).CreateDelegate<Func<T, byte[]>>();
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void SetBitAt(T* p, int iBit) => *p |= T.One << iBit;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static void SetBitRange(T* p, int iBitStart, int cnt) => *p |= (T.One << iBitStart + cnt) - (T.One << iBitStart);
+	public static void SetBitRange(T* p, int iBitStart, int cnt)
+	{
+		if (iBitStart + cnt >= cntBit_T)
+		{
+			*p |= T.Zero - (T.One << iBitStart);
+		}
+		else
+		{
+			*p |= (T.One << iBitStart + cnt) - (T.One << iBitStart);
+		}
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void ClearBitRange(T* p, int iBitStart, int cnt) => *p &= ~((T.One << iBitStart + cnt) - (T.One << iBitStart));
 	public static int cntBit_T = sizeof(T) * 8;
@@ -196,9 +207,9 @@ public unsafe static class MultiBlockOp<T> where T : unmanaged, IBinaryInteger<T
 	public static void SetBitRange(T* p, int iBitStart, int cnt)
 	{
 		(var q, var iBit) = Math.DivRem(iBitStart, cntBits_BLOCK);
-		if (iBit + cnt < cntBits_BLOCK)
+		if (iBit + cnt <= cntBits_BLOCK)
 		{
-			NativeOp<T>.SetBitRange(p, iBit, cnt);
+			NativeOp<T>.SetBitRange(p + q, iBit, cnt);
 			if (q == 0) return;
 		}
 		else
@@ -464,9 +475,10 @@ public unsafe class NQueenData : IDisposable
 	public NQueenData(uint iWidth, uint iHeight, uint cntQueen, uint szBlock = sizeof(ulong))
 	{
 		ArgumentOutOfRangeException.ThrowIfZero(cntQueen, nameof(cntQueen));
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(cntQueen, 16u, nameof(cntQueen));
 		cntQueens = (int)cntQueen;
 		ArgumentOutOfRangeException.ThrowIfZero(szBlock, nameof(szBlock));
-		ArgumentOutOfRangeException.ThrowIfGreaterThan((int)szBlock, 16, nameof(szBlock));
+		ArgumentOutOfRangeException.ThrowIfGreaterThan((int)szBlock, 32, nameof(szBlock));
 		this.m_sz_block = (int)szBlock;
 		const int cntBit_BYTE = 8;
 		this.iWidth = (int)iWidth;
@@ -531,7 +543,7 @@ public unsafe class NQueenData : IDisposable
 				MultiBlockOp<uint>.GenerateTemplate(this);
 				break;
 			case <= sizeof(ulong):
-				MultiBlockOp<uint>.GenerateTemplate(this);
+				MultiBlockOp<ulong>.GenerateTemplate(this);
 				break;
 			default://multiple of 8 bytes
 				MultiBlockOp<ulong>.GenerateTemplate(this);
@@ -540,12 +552,16 @@ public unsafe class NQueenData : IDisposable
 
 	}
 
-	public Solver CreateSolver() => this.SZ switch
+	public Solver CreateSolver(bool preferMulti = false) => this.SZ switch
 	{
 		<= 0 => throw new ArgumentOutOfRangeException(),
 		<= sizeof(ushort) => new SolverNative<ushort>(this),
 		<= sizeof(uint) => new SolverNative<uint>(this),
-		<= sizeof(ulong) => new SolverNative<ulong>(this),
+		<= sizeof(ulong) => preferMulti switch
+		{
+			true => new SolverMultiBlock(this),
+			_ => new SolverNative<ulong>(this)
+		},
 		_ => new SolverMultiBlock(this),
 	};
 	public static string BitMapToString(void* pBitmap, int w, int h)
@@ -565,7 +581,7 @@ public unsafe class NQueenData : IDisposable
 				}
 				else
 				{
-					r.Append('O');
+					r.Append('.');
 				}
 				iBit++;
 				if (iBit >= cnt_bits_total)
@@ -1007,10 +1023,10 @@ public unsafe class SolverMultiBlock : Solver
 }
 public class NQueenSolver
 {
-	public static unsafe List<int[]> All(int n)
+	public static unsafe List<int[]> All(int n, bool preferMultiBlock = false)
 	{
 		using var qs = new NQueenData((uint)n, (uint)n, (uint)n);
-		var s = qs.CreateSolver();
+		var s = qs.CreateSolver(preferMultiBlock);
 
 		var idxLastTile = n * n - 1;
 		var Queens = new int[n];//N queens' indice in bitmap
@@ -1103,10 +1119,10 @@ public class Solution_leetCode
 		}
 		return r;
 	}
-	public IList<IList<string>> SolveNQueens(int n)
+	public IList<IList<string>> SolveNQueens(int n, bool prefer = false)
 	{
 		var r = new List<IList<string>>();
-		var list = NQueenSolver.All(n);
+		var list = NQueenSolver.All(n, prefer);
 		foreach (var indice in list)
 		{
 			var x = ConvertFromIndice(indice, n, n);
