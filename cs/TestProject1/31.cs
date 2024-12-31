@@ -1,4 +1,6 @@
-﻿file class Solution
+﻿using System.Text;
+
+file class Solution
 {
 	public void NextPermutation(int[] nums)//leetcode 31
 	{
@@ -23,6 +25,25 @@
 	public IList<IList<int>> PermuteUnique(int[] nums)//leetcode 47
 	{
 		return Permute(nums);
+	}
+	public string GetPermutation(int n, int k)//leetcode 60
+	{
+		var A = Combinatorics.Permutation.FromNum((ulong)k - 1, n);
+		var sb = new StringBuilder(n);
+		foreach (var i in A)
+		{
+			sb.Append((char)('0' + i));
+		}
+		return sb.ToString();
+	}
+	public IList<IList<int>> Combine(int n, int k)//leetcode 77
+	{
+		List<IList<int>> list = new();
+		foreach (var A in Combinatorics.Combination.All(k: k, n: n))
+		{
+			list.Add((IList<int>)A.Clone());
+		}
+		return list;
 	}
 }
 [TestClass]
@@ -73,5 +94,27 @@ public sealed class Test31
 		//	i++;
 		//	if (i >= 6) break;
 		//}
+	}
+}
+[TestClass]
+public sealed class Test60
+{
+	[TestMethod]
+	public void TestMethod1()
+	{
+		Solution s = new Solution();
+		var f = s.GetPermutation;
+		T(f(3, 3), "213");
+	}
+}
+[TestClass]
+public sealed class Test77
+{
+	[TestMethod]
+	public void TestMethod1()
+	{
+		Solution s = new Solution();
+		var f = s.Combine;
+		T(f(4, 2), [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]]);
 	}
 }

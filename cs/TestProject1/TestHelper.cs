@@ -247,8 +247,9 @@ namespace ConsoleApp1
 			}
 			else
 			{
+				Console.Write("expect:");
 				Print(expect);
-				Console.Write(" != ");
+				Console.Write(" !=actural:");
 				COLOR_PRINT(ConsoleColor.Red, () =>
 				{
 					Print(actual);

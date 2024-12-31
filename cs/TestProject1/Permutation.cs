@@ -130,12 +130,60 @@ public static class Permutation
 			yield return nums;
 		};
 	}
-	public static int[] FromNum(UInt64 index, int cnt)
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="k">1 to n!, %n! if out range</param>
+	/// <param name="cnt">0 to 20</param>
+	/// <returns></returns>
+	/// <exception cref="ArgumentOutOfRangeException"></exception>
+	public static List<int> FromNum(ulong k, int n)
 	{
-		throw new NotImplementedException();
+		switch (n)
+		{
+			case < 0:
+			case > 20://20! < 2^63 - 1 < 21!
+					  //case > 12://12! < 2^31 - 1 < 13!
+				throw new ArgumentOutOfRangeException(nameof(n));
+			case 0: return [];
+			case 1: return [1];
+			default:
+				break;
+		}
+		var f = MyMath.Factorial(n);
+		k = k % f;
+		var r = new List<int>(n);
+		List<int> remainElem = Enumerable.Range(1, n).ToList();
+		do
+		{
+			f = f / (ulong)n;
+			(var q, var rem) = System.Math.DivRem(k, f);
+			int i = (int)q;
+			r.Add(remainElem[i]);
+			remainElem.RemoveAt(i);
+			k = rem;
+			n--;
+		} while (n > 1);
+		r.Add(remainElem[0]);
+		return r;
 	}
 	public static UInt64 ToNum(int[] p)
 	{
 		throw new NotImplementedException();
+	}
+}
+[TestClass]
+public sealed class TestPermutation
+{
+	[TestMethod]
+	public void TestFromNum()
+	{
+		var f = Permutation.FromNum;
+		T(f(0, 3), [1, 2, 3]);
+		T(f(1, 3), [1, 3, 2]);
+		T(f(2, 3), [2, 1, 3]);
+		T(f(3, 3), [2, 3, 1]);
+		T(f(4, 3), [3, 1, 2]);
+		T(f(5, 3), [3, 2, 1]);
 	}
 }
