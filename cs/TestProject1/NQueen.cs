@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -37,10 +38,10 @@ public unsafe static class NativeOp<T> where T : unmanaged, IBinaryInteger<T>//I
 	public static int PrevOneBit(void* ptr, int iBitCur)
 	{
 		if (iBitCur < 1) return -1;
-		T MASK = iBitCur < (cntBit_T) ? (T.One << (iBitCur)) - T.One : T.Zero - T.One;
+		T MASK = iBitCur < cntBit_T ? (T.One << (iBitCur)) - T.One : T.Zero - T.One;
 		var dst = (T*)ptr;
 		var r = T.LeadingZeroCount(*dst & MASK);
-		var i = (cntBit_T - 1) - *(int*)&r;
+		var i = cntBit_T - 1 - *(int*)&r;
 		//if (i >= iBitCur) return -1;
 		return i;
 	}
@@ -207,29 +208,49 @@ public unsafe static class MultiBlockOp<T> where T : unmanaged, IBinaryInteger<T
 	public static void SetBitRange(T* p, int iBitStart, int cnt)
 	{
 		(var q, var iBit) = Math.DivRem(iBitStart, cntBits_BLOCK);
+#if DEBUG
+		var debugSpan = new Span<byte>(p, 8);
+#endif
 		if (iBit + cnt <= cntBits_BLOCK)
 		{
 			NativeOp<T>.SetBitRange(p + q, iBit, cnt);
-			if (q == 0) return;
-		}
-		else
-		{
-			*p |= T.Zero - (T.One << iBit);
+			return;
 		}
 
+		p += q;
+		*p |= T.Zero - (T.One << iBit);
 		cnt -= cntBits_BLOCK - iBit;
 		iBit = 0;
 		while (cnt >= cntBits_BLOCK)
 		{
 			p++;
-			p[q] |= T.Zero - T.One;
+			*p |= T.Zero - T.One;
 			cnt -= cntBits_BLOCK;
 		}
 		if (cnt == 0) return;
 		p++;
-		p[q] |= (T.One << iBit + cnt + 1) - T.One;
+		*p |= (T.One << (cnt)) - T.One;
 	}
+	public static int NextZeroBit(void* ptr, int iBitCur, int cntBlocksPerBitmap)
+	{
+		if (cntBlocksPerBitmap == 1)
+		{
+			return NativeOp<T>.NextZeroBit(ptr, iBitCur);
+		}
+		var p = (T*)ptr;
+		(var q, var r) = Math.DivRem(iBitCur, cntBits_BLOCK);
 
+		var idx = NativeOp<T>.NextZeroBit(p + q, r);
+		while (idx == -1)
+		{
+			q++;
+			if (q >= cntBlocksPerBitmap)
+			{
+				return -1;
+			}
+		}
+		return q * cntBits_BLOCK + idx;
+	}
 
 	internal static void Generate_HLINES(NQueenData qs, void* p)
 	{
@@ -268,7 +289,7 @@ public unsafe static class MultiBlockOp<T> where T : unmanaged, IBinaryInteger<T
 			if (rem >= cntBits_BLOCK)
 			{
 				q++;
-				rem = 0;
+				rem -= cntBits_BLOCK;
 			}
 		}
 		int iCol = 1;
@@ -381,7 +402,7 @@ public unsafe static class MultiBlockOp<T> where T : unmanaged, IBinaryInteger<T
 		(var iRow, var iCol) = Math.DivRem(iBit, qs.iWidth);
 
 		f(qs.GetHLineAt(iRow));
-		f(qs.GetVLineAt(iRow));
+		f(qs.GetVLineAt(iCol));
 		f(qs.GetBackSlashAt(iRow, iCol));
 		f(qs.GetSlashAt(iRow, iCol));
 	}
@@ -487,7 +508,6 @@ public unsafe class NQueenData : IDisposable
 		ref var h = ref this.iHeight;
 		cntChessboardTiles = w * h;
 		ArgumentOutOfRangeException.ThrowIfZero(cntChessboardTiles, nameof(cntChessboardTiles));
-		ArgumentOutOfRangeException.ThrowIfGreaterThan(cntChessboardTiles, m_sz_block * cntBit_BYTE, nameof(cntChessboardTiles));
 		(SZ, var rem) = Math.DivRem(cntChessboardTiles, cntBit_BYTE);
 		if (rem > 0)
 		{
@@ -564,34 +584,44 @@ public unsafe class NQueenData : IDisposable
 		},
 		_ => new SolverMultiBlock(this),
 	};
-	public static string BitMapToString(void* pBitmap, int w, int h)
+	public static string BitMapToString(void* pBitmap, int w, int h, Span<int> queens = default)
 	{
 		var r = new StringBuilder();
 		int iBit = 0;
 		var data = (ulong*)pBitmap;
 		int cnt_bits_total = w * h;
-		int cnt_bits_typeBlock = Marshal.SizeOf(data[0]) * 8;
+		int cnt_bits_block = Marshal.SizeOf(data[0]) * 8;
+		int iBlock = 0;
 		for (int iRow = 0; iRow < h; iRow++)
 		{
 			for (int iCol = 0; iCol < w; iCol++)
 			{
-				if (((*data >> iBit) & 1) == 1)
+				char c;
+				if (((data[iBlock] >> iBit) & 1) == 1)
 				{
-					r.Append('X');
+					if (queens.Contains(iBlock * cnt_bits_block + iBit))
+					{
+						c = 'Q';
+					}
+					else
+					{
+						c = '.';
+					}
 				}
 				else
 				{
-					r.Append('.');
+					c = '_';
 				}
+				r.Append(c);
 				iBit++;
 				if (iBit >= cnt_bits_total)
 				{
 					goto END;
 				}
-				if (iBit >= cnt_bits_typeBlock)
+				if (iBit >= cnt_bits_block)
 				{
 					iBit = 0;
-					data++;
+					iBlock++;
 				}
 			}
 			r.AppendLine();
@@ -599,7 +629,35 @@ public unsafe class NQueenData : IDisposable
 	END:
 		return r.ToString();
 	}
-
+	public static void DebugPrintBitmap(NQueenData data, int iQ)
+	{
+		unsafe
+		{
+			var bitmap = data.GetHLineAt(iQ);
+			var a = NQueenData.BitMapToString(bitmap, data.iWidth, data.iHeight);
+			Console.WriteLine(a);
+			Console.WriteLine($"------{iQ}");
+		}
+	}
+	public static void DebugPrintAllTemplates(NQueenData qs)
+	{
+		var cntBitmap = (qs.iWidth + qs.iHeight) * 3 - 2;
+		for (int i = 0; i < cntBitmap; i++)
+		{
+			DebugPrintBitmap(qs, i);
+		}
+		return;
+		//unsafe
+		//{
+		//	var f = (ulong bitmap, int i) =>
+		//	{
+		//		NativeOp<ulong>.PrintQueenSight(qs, &bitmap, i);
+		//		return NQueenData.BitMapToString((byte*)&bitmap, qs.iWidth, qs.iHeight);
+		//	};
+		//	ulong data = 0;
+		//	var a = f(data, 0);
+		//}
+	}
 	#region IDisposable
 	private bool disposedValue;
 	protected virtual void Dispose(bool disposing)
@@ -688,7 +746,12 @@ public unsafe static class SparseBitArrayQueen
 {
 	internal static BitArray FromQueens(int[] Q, int w)
 	{
-		var ba = new BitArray(Q.Length * 8);
+		(var lenBuff, var r) = Math.DivRem(Q.Length, sizeof(ulong));
+		if (r != 0)
+		{
+			lenBuff++;
+		}
+		var ba = new BitArray(lenBuff * sizeof(ulong) * 8);
 		var arrDst = BitArrayComparer.fi_bitarray.GetValue(ba) as int[];
 		fixed (int* pDst = arrDst)
 		{
@@ -696,24 +759,74 @@ public unsafe static class SparseBitArrayQueen
 			foreach (var q in Q)
 			{
 				(var iRow, var iCol) = Math.DivRem(q, w);
-				*p = (byte)((iRow << 4) | iCol);
+				*p = (byte)((iRow << LEN_HALF) | iCol);
+				p++;
 			}
 		}
 		return ba;
 	}
-	internal static int[] ToQueens(BitArray ba, int w)
+	internal static int[] ToQueens(BitArray ba, int w, int cntQueens)
 	{
 		var arrDst = BitArrayComparer.fi_bitarray.GetValue(ba) as int[];
 		fixed (int* pDst = arrDst)
 		{
 			byte* p = (byte*)pDst;
-			var cnt = ba.Length / 8;
+			var cnt = cntQueens;
 			int[] r = new int[cnt];
 			for (nint i = 0; i < cnt; i++)
 			{
 				r[i] = (*p & 15) + ((*p >> 4) * w);
+				p++;
 			}
 			return r;
+		}
+	}
+
+	public static string SparseBitArrayToString(void* pSrc, int w, int cntQueens)
+	{
+		var sb = new StringBuilder();
+		byte* p = (byte*)pSrc;
+		sb.Append('[');
+		for (nint iQ = 0; iQ < cntQueens; iQ++)
+		{
+			var iRow = *p & MASK_LOW;
+			var iCol = (*p & MASK_HIGH) >> LEN_HALF;
+			sb.Append($"({iRow},{iCol}),");
+			p++;
+		}
+		sb.Append(']');
+		return sb.ToString();
+	}
+	public static string SparseBitArrayToString(BitArray ba, int w, int cntQueens)
+	{
+		var arrDst = BitArrayComparer.fi_bitarray.GetValue(ba) as int[];
+		fixed (int* pDst = arrDst)
+		{
+			return SparseBitArrayToString(pDst, w, cntQueens);
+		}
+	}
+	internal static void Sort(BitArray ba, NQueenData data)
+	{
+		var arrDst = BitArrayComparer.fi_bitarray.GetValue(ba) as int[];
+		fixed (int* pDst = arrDst)
+		{
+			byte* p = (byte*)pDst;
+			var cntQueens = data.cntQueens;
+
+			const bool general = false;
+			if (general)
+			{
+				CQuickSort.quickSort(p, 0, cntQueens - 1);
+			}
+			else //specialize for queen and rook
+			{
+
+				for (nint iQ = 0; iQ < cntQueens; iQ++)
+				{
+					(var iRow, var iCol) = Math.DivRem(p[iQ], data.iWidth);
+					p[iRow] = (byte)((iRow << LEN_HALF) | iCol);
+				}
+			}
 		}
 	}
 	const int MASK_HIGH = 0b1111_0000;//240;
@@ -736,7 +849,7 @@ public unsafe static class SparseBitArrayQueen
 		//y=-y
 		var pD = (byte*)pDst;
 		var pS = (byte*)pSrc;
-		var magicnum = ((h - 1) << LEN_HALF);
+		var magicnum = (h - 1) << LEN_HALF;
 		for (int i = 0; i < len; i++)
 		{
 			pD[i] = (byte)((magicnum - pS[i] & MASK_HIGH) | (pS[i] & MASK_LOW));
@@ -759,11 +872,16 @@ public unsafe static class SparseBitArrayQueen
 		//y=x
 		var pD = (byte*)pDst;
 		var pS = (byte*)pSrc;
-		var magicnum = w - 1;
 		for (int i = 0; i < len; i++)
 		{
 			pD[i] = (byte)((pS[i] >> LEN_HALF) | (pS[i] << MASK_HIGH));
 		}
+	}
+	public static void R0(nint pSrc, int w, int h, nint pDst, nint len)
+	{
+		//x=x
+		//y=y
+		NativeMemory.Copy((void*)pSrc, (void*)pDst, (nuint)len);
 	}
 	public static void R90(nint pSrc, int w, int h, nint pDst, nint len)
 	{
@@ -775,7 +893,7 @@ public unsafe static class SparseBitArrayQueen
 		var magicnum = w - 1;
 		for (int i = 0; i < len; i++)
 		{
-			pD[i] = (byte)((pS[i] >> LEN_HALF) | ((w - (pS[i] & MASK_LOW)) << LEN_HALF));
+			pD[i] = (byte)((pS[i] >> LEN_HALF) | ((magicnum - (pS[i] & MASK_LOW)) << LEN_HALF));
 		}
 	}
 	public static void R270(nint pSrc, int w, int h, nint pDst, nint len)
@@ -784,47 +902,37 @@ public unsafe static class SparseBitArrayQueen
 		//y=x
 		var pD = (byte*)pDst;
 		var pS = (byte*)pSrc;
-		var magicnum = w - 1;
+		var magicnum = h - 1;
 		for (int i = 0; i < len; i++)
 		{
-			pD[i] = (byte)((pS[i] << LEN_HALF) | (h - (pS[i] >> LEN_HALF)));
+			pD[i] = (byte)((pS[i] << LEN_HALF) | (magicnum - (pS[i] >> LEN_HALF)));
 		}
-	}
-	internal static BitArray ConvertQueenPosArrayToBitArray(int[] Q, int cntBits_Bitmap)
-	{
-		var bb = new System.Collections.BitArray(cntBits_Bitmap);
-		foreach (var q in Q)
-		{
-			bb.Set(q, true);
-		}
-		return bb;
-		//return (Array)bb.GetType().GetField("m_array", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(bb);
-
-		//var b1 = BigInteger.Zero;
-		//foreach (int i in Q)
-		//{
-		//	b1 |= BigInteger.One << i;
-		//}
-		//return b1.ToByteArray();
 	}
 	static BitArray FuncMapper(BitArray baSrc, NQueenData data, Action<nint, int, int, nint, nint> fBitOp)
 	{
 		var arrSrc = BitArrayComparer.fi_bitarray.GetValue(baSrc) as int[];
 		var baDst = new BitArray(baSrc.Length);
 		var arrDst = BitArrayComparer.fi_bitarray.GetValue(baDst) as int[];
-		var cnt = data.cntQueens;
-		var temp = stackalloc byte[cnt];
-		fixed (int* pSrc = arrSrc, pDst = arrSrc)
+		var cntQueens = data.cntQueens;
+		var temp = stackalloc byte[cntQueens];
+		fixed (int* pSrc = arrSrc, pDst = arrDst)
 		{
-			fBitOp((nint)pSrc, data.iWidth, data.iHeight, (nint)temp, cnt);
-			var pByteDst = (byte*)pDst;
-			for (int i = 0; i < cnt; i++)
+			//Console.Write("temp{");
+			//Console.WriteLine(SparseBitArrayToString(temp, data.iWidth, cntQueens));
+			fBitOp((nint)pSrc, data.iWidth, data.iHeight, (nint)temp, cntQueens);
+			Console.Write($"{fBitOp.Method.Name}->");
+			Console.WriteLine(SparseBitArrayToString(temp, data.iWidth, cntQueens));
+			byte* p = (byte*)pDst;
+			for (int i = 0; i < cntQueens; i++)
 			{
-				pDst[temp[i] >> LEN_HALF] = temp[i];
+				p[temp[i] >> LEN_HALF] = temp[i];
 			}
+			Console.Write($"Sort->");
+			Console.WriteLine(SparseBitArrayToString(p, data.iWidth, cntQueens));
 		}
 		return baDst;
 	}
+	public static BitArray Rotate0(BitArray baSrc, NQueenData data) => FuncMapper(baSrc, data, SparseBitArrayQueen.R0);
 	public static BitArray Rotate90(BitArray baSrc, NQueenData data) => FuncMapper(baSrc, data, SparseBitArrayQueen.R90);
 	public static BitArray Rotate180(BitArray baSrc, NQueenData data) => FuncMapper(baSrc, data, SparseBitArrayQueen.R180);
 	public static BitArray Rotate270(BitArray baSrc, NQueenData data) => FuncMapper(baSrc, data, SparseBitArrayQueen.R270);
@@ -882,6 +990,15 @@ public unsafe class BitArrayComparer : IComparer<BitArray>
 	const int cntBit_ULONG = sizeof(ulong) * 8;
 	public static FieldInfo fi_bitarray = typeof(BitArray).GetField("m_array", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
+	internal static BitArray ConvertQueenPosArrayToBitArray(int[] Q, int cntBits_Bitmap)
+	{
+		var bb = new System.Collections.BitArray(cntBits_Bitmap);
+		foreach (var q in Q)
+		{
+			bb.Set(q, true);
+		}
+		return bb;
+	}
 	internal static int[] ConvertBitArrayToQueenPosArray(BitArray bb)
 	{
 		(var cntBlock, var rem) = Math.DivRem(bb.Length, cntBit_ULONG);
@@ -968,82 +1085,122 @@ public unsafe class SolverMultiBlock : Solver
 	public SolverMultiBlock(NQueenData data1) : base(data1)
 	{
 		ArgumentOutOfRangeException.ThrowIfNotEqual(data.SZ_BLOCK, sizeof(ulong), "block must be ulong");
-		ArgumentOutOfRangeException.ThrowIfNotEqual(data.SZ_BITMAP, sizeof(ulong), $"{nameof(data.SZ_BITMAP)} must be multiple of {nameof(data.SZ_BLOCK)}");
+		(cntBlocksPerBitmap, var r) = Math.DivRem(data.SZ_BITMAP, data.SZ_BLOCK);
+		if (r != 0)
+		{
+			throw new ArgumentOutOfRangeException($"{nameof(data.SZ_BITMAP)} must be multiple of {nameof(data.SZ_BLOCK)}");
+		}
+		ArgumentOutOfRangeException.ThrowIfLessThan(data.SZ_BITMAP, data.SZ_BLOCK);
 		cntBits_BLOCK = data.SZ_BLOCK * 8;
 		cntBits_BITMAP = data.SZ_BITMAP * 8;
 		fPrintQueenSight = &MultiBlockOp<ulong>.PrintQueenSight;
 		book = new(new BitArrayComparer());
-		cntBlocksPerBitmap = data.SZ_BITMAP / data.SZ_BLOCK;
 	}
 	public override int NextVacant(void* ptr, int iBitCur)
 	{
-		var p = (ulong*)ptr;
-		(var q, var r) = Math.DivRem(iBitCur, cntBits_BLOCK);
-	AGAIN:
-		while (q < cntBlocksPerBitmap)
-		{
-			do
-			{
-				if ((p[q] & (1ul << r)) == 0ul)
-				{
-					return q * cntBits_BLOCK + r;
-				}
-				r++;
-			} while (r < cntBits_BLOCK);
-			r = 0;
-			q++;
-		}
-		return -1;
+		return MultiBlockOp<ulong>.NextZeroBit(ptr, iBitCur, cntBlocksPerBitmap);
 	}
 	public override bool RegisterQueenConfig(int[] Q)
 	{
 		var hs = book;
-		var b = SparseBitArrayQueen.ConvertQueenPosArrayToBitArray(Q, cntBits_BITMAP);
+		var b = SparseBitArrayQueen.FromQueens(Q, data.iWidth);
+		SparseBitArrayQueen.Sort(b, this.data);
 		if (hs.Contains(b))
 		{
 			return false;
 		}
+#if DEBUG
+		Console.WriteLine(SparseBitArrayQueen.SparseBitArrayToString(b, data.iWidth, data.cntQueens));
+#endif
 		var cntQ = Q.Length;
-		void f(BitArray x)
+		void fadd(BitArray x)
 		{
-			hs.Add(x);
-			hs.Add(SparseBitArrayQueen.Rotate90(x, data));
-			hs.Add(SparseBitArrayQueen.Rotate180(x, data));
-			hs.Add(SparseBitArrayQueen.Rotate270(x, data));
+			var bSuccess = hs.Add(x);
+#if DEBUG
+			if (bSuccess)
+			{
+				Console.WriteLine($"Add count:{hs.Count}");
+				Console.WriteLine(SparseBitArrayQueen.SparseBitArrayToString(x, data.iWidth, data.cntQueens));
+			}
+			else
+			{
+				Console.WriteLine($"Add fail");
+			}
+#endif
 		}
-		f(b);
+		void fAddAllOperations(BitArray x)
+		{
+			fadd(SparseBitArrayQueen.Rotate0(x, data));
+			fadd(SparseBitArrayQueen.Rotate90(x, data));
+			fadd(SparseBitArrayQueen.Rotate180(x, data));
+			fadd(SparseBitArrayQueen.Rotate270(x, data));
+		}
+		fAddAllOperations(b);
 		var a = SparseBitArrayQueen.FlipX(b, data);
-		f(a);
+		fAddAllOperations(a);
 		return true;
 	}
 	public override List<int[]> DumpBook()
 	{
-		return book.Select(BitArrayComparer.ConvertBitArrayToQueenPosArray).ToList();
+		//return book.Select(BitArrayComparer.ConvertBitArrayToQueenPosArray).ToList();
+		var r = new List<int[]>();
+		foreach (var ba in book)
+		{
+			r.Add(SparseBitArrayQueen.ToQueens(ba, data.iWidth, data.cntQueens));
+		}
+		return r;
 	}
 }
 public class NQueenSolver
 {
+	static void PrintBitmap(NQueenData data, int iQ, int[] Queens)
+	{
+		unsafe
+		{
+			Span<int> subQs = Queens is null ? ([]) : (Span<int>)Queens[0..(iQ + 1)];
+			var bitmap = data.QueenCache_GetAt(iQ);
+			var a = NQueenData.BitMapToString(bitmap, data.iWidth, data.iHeight, subQs);
+			Console.WriteLine(a);
+			Console.Write("------");
+			Console.Write('[');
+			foreach (var q in subQs)
+			{
+				Console.Write(q);
+				Console.Write(',');
+			}
+			Console.Write(']');
+			Console.WriteLine();
+		}
+	}
 	public static unsafe List<int[]> All(int n, bool preferMultiBlock = false)
 	{
-		using var qs = new NQueenData((uint)n, (uint)n, (uint)n);
-		var s = qs.CreateSolver(preferMultiBlock);
+		var cntQueens = n;
+		using var data = new NQueenData((uint)n, (uint)n, (uint)cntQueens);
+		var s = data.CreateSolver(preferMultiBlock);
 
 		var idxLastTile = n * n - 1;
-		var Queens = new int[n];//N queens' indice in bitmap
+		var Queens = new int[cntQueens];//N queens' indice in bitmap
 		Queens[0] = 0;
 		int iQ = 0, iBit = 0;
-		var fPrintCurrentQueenSight = () => s.fPrintQueenSight(qs, qs.QueenCache_GetAt(iQ), iBit);
+		void fPrintCurrentQueenSight()
+		{
+			s.fPrintQueenSight(data, data.QueenCache_GetAt(iQ), iBit);
+#if DEBUG
+			PrintBitmap(data, iQ, Queens);
+#endif
+		}
+
 		do
 		{
-			qs.QueenCache_ClearAt(iQ);
+			data.QueenCache_ClearAt(iQ);
 			iBit = Queens[iQ];
 			fPrintCurrentQueenSight();
 		NEXT_Q:
 			iQ++;
-			if (iQ < n - 1)
+			if (iQ < cntQueens - 1)
 			{
-				qs.QueenCache_CopyFromPrevTo(iQ);
-				iBit = s.NextVacant(qs.QueenCache_GetAt(iQ), iBit);
+				data.QueenCache_CopyFromPrevTo(iQ);
+				iBit = s.NextVacant(data.QueenCache_GetAt(iQ), iBit);
 				if (iBit == -1 || iBit >= idxLastTile)
 				{
 					iQ--;
@@ -1054,8 +1211,8 @@ public class NQueenSolver
 				goto NEXT_Q;
 			}
 		YIELD_AGAIN:
-			iBit = s.NextVacant(qs.QueenCache_GetAt(iQ - 1), iBit);
-			if (iBit == -1 || iBit >= idxLastTile)
+			iBit = s.NextVacant(data.QueenCache_GetAt(iQ - 1), iBit);
+			if (iBit == -1 || iBit > idxLastTile)
 			{
 				iQ--;
 				goto CARRY;
@@ -1066,8 +1223,9 @@ public class NQueenSolver
 			goto YIELD_AGAIN;
 		CARRY:
 			if (iQ < 1) goto CARRY_FIRST;
-			qs.QueenCache_CopyFromPrevTo(iQ);
-			iBit = s.NextVacant(qs.QueenCache_GetAt(iQ), Queens[iQ]);
+			data.QueenCache_CopyFromPrevTo(iQ);
+			Queens[iQ]++;
+			iBit = s.NextVacant(data.QueenCache_GetAt(iQ), Queens[iQ]);
 			if (iBit == -1 || iBit >= idxLastTile)
 			{
 				iQ--;

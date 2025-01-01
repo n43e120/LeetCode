@@ -132,21 +132,75 @@ public unsafe sealed class TestNativeOp
 public unsafe sealed class TestMultiBlockOp
 {
 	[TestMethod]
-	public void TestSetBitRange()
+	public void TestSetBitRange_8()
 	{
+		for (int i = 5; i < 8; i++)
+		{
+			var w = i;
+			var h = i;
+			var fExpect = (ulong x, int i, int cnt) =>
+			{
+				NativeOp<ulong>.SetBitRange(&x, i, cnt);
+				return NQueenData.BitMapToString(&x, w, h);
+			};
+			var fActual = (ulong x, int i, int cnt) =>
+			{
+				MultiBlockOp<byte>.SetBitRange((byte*)&x, i, cnt);
+				return NQueenData.BitMapToString(&x, w, h);
+			};
+			for (int iRow = 0; iRow < h; iRow++)
+			{
+				T(fActual(0, iRow * w, w), fExpect(0, iRow * w, w), $"n:{i},iRow:{iRow}");
+			}
+		}
+	}
+	[TestMethod]
+	public void TestSetBitRange_9()
+	{
+		var i = 9;
+		var w = i;
+		var h = i;
 		var fExpect = (ulong x, int i, int cnt) =>
 		{
 			NativeOp<ulong>.SetBitRange(&x, i, cnt);
-			return NQueenData.BitMapToString(&x, 8, 8);
+			return NQueenData.BitMapToString(&x, w, h);
 		};
 		var fActual = (ulong x, int i, int cnt) =>
 		{
 			MultiBlockOp<byte>.SetBitRange((byte*)&x, i, cnt);
+			return NQueenData.BitMapToString(&x, w, h);
+		};
+		for (int iRow = 0; iRow < h; iRow++)
+		{
+			T(fActual(0, iRow * w, w), fExpect(0, iRow * w, w), $"n:{i},iRow:{iRow}");
+		}
+	}
+	[TestMethod]
+	public void TestNextZeroBit()
+	{
+		var fExpect = (ulong x, int i) =>
+		{
+			NativeOp<ulong>.NextZeroBit(&x, i);
 			return NQueenData.BitMapToString(&x, 8, 8);
 		};
-		for (int iRow = 7; iRow < 8; iRow++)
+		var fActual = (ulong x, int i, int cntBlocksPerBitmap) =>
 		{
-			T(fActual(0, iRow * 8, 8), fExpect(0, iRow * 8, 8));
+			MultiBlockOp<byte>.NextZeroBit((byte*)&x, i, cntBlocksPerBitmap);
+			return NQueenData.BitMapToString(&x, 8, 8);
+		};
+		void f(int iBit, int iBitAnchor)
+		{
+			ulong x = 1ul << iBitAnchor;
+			var a = fActual(x, iBit, sizeof(ulong) / sizeof(byte));
+			var e = fExpect(x, iBit);
+			T(a, e, $"{iBitAnchor},{iBit}");
+		}
+		for (int iBitAnchor = 0; iBitAnchor < 64; iBitAnchor++)
+		{
+			for (int iBit = 0; iBit < 64; iBit++)
+			{
+				f(iBit, iBitAnchor);
+			}
 		}
 	}
 }

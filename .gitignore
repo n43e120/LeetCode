@@ -57,3 +57,5 @@ bld/
 .vs/
 obj/
 bin/
+
+*.noversion.cs

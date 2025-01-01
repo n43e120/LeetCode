@@ -238,7 +238,8 @@ namespace ConsoleApp1
 		}
 		public static void T<X>(
 		X actual,
-		X expect
+		X expect,
+		string msg = null
 		) where X : IEquatable<X>
 		{
 			if (expect.Equals(actual))
@@ -247,14 +248,14 @@ namespace ConsoleApp1
 			}
 			else
 			{
-				Console.Write("expect:");
+				Console.WriteLine("expect:");
 				Print(expect);
-				Console.Write(" !=actural:");
+				Console.WriteLine("actural:");
 				COLOR_PRINT(ConsoleColor.Red, () =>
 				{
 					Print(actual);
 				});
-				Console.WriteLine();
+				Console.WriteLine(msg);
 #if MSTEST
 				Assert.Fail();
 #endif

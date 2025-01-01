@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Combinatorics;
+﻿namespace Combinatorics;
 public static partial class MyMath
 {
 	public static ulong Factorial(int n)
