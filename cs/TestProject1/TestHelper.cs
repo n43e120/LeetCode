@@ -79,11 +79,115 @@ namespace ConsoleApp1
 			}
 			Console.Write("]");
 		}
-		public static bool IsEqual<T>(T A, T B) where T : IEquatable<T>
+		public static (IList<T> notInA, IList<T> notInB) Differ<T>(IList<T> A, IList<T> B) where T : IEquatable<T>
 		{
-			return A.Equals(B);
+			IList<T> notInA = [], notInB = [];
+			foreach (T b in B)
+			{
+				if (!notInA.Contains(b))
+				{
+					notInA.Add(b);
+				}
+			}
+			foreach (T a in A)
+			{
+				if (!notInB.Contains(a))
+				{
+					notInA.Add(a);
+				}
+			}
+			return (notInA, notInB);
 		}
 
+		public static bool SetEquals<T>(IList<T> A, IList<T> B) where T : IEquatable<T>
+		{
+			if (A.Count != B.Count)
+			{
+				return false;
+			}
+			var len = A.Count;
+			var la = A.ToList();
+			la.Sort();
+			var lb = B.ToList();
+			lb.Sort();
+			for (int j = 0; j < len; j++)
+			{
+				if (!la[j].Equals(lb[j]))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+		public static bool SetSetContains<T>(IList<IList<T>> AA, IList<T> B) where T : IEquatable<T>
+		{
+			if (AA.Contains(B))
+			{
+				return true;
+			}
+			foreach (var A in AA)
+			{
+				if (SetEquals(A, B))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		public static (IList<IList<T>> notInA, IList<IList<T>> notInB) SetSetDiffer<T>(IList<IList<T>> AA, IList<IList<T>> BB) where T : IEquatable<T>
+		{
+			IList<IList<T>> notInA = [], notInB = [];
+			foreach (var B in BB)
+			{
+				if (!SetSetContains(AA, B))
+				{
+					notInA.Add(B);
+				}
+			}
+			foreach (var A in AA)
+			{
+				if (!SetSetContains(BB, A))
+				{
+					notInB.Add(A);
+				}
+			}
+			return (notInA, notInB);
+		}
+		public static bool ListEquals<T>(IList<T> A, IList<T> B) where T : IEquatable<T> => A.SequenceEqual(B);
+		public static bool SetListContains<T>(IList<IList<T>> AA, IList<T> B) where T : IEquatable<T>
+		{
+			if (AA.Contains(B))
+			{
+				return true;
+			}
+			foreach (var A in AA)
+			{
+				if (ListEquals(A, B))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		public static (IList<IList<T>> notInA, IList<IList<T>> notInB) SetListDiffer<T>(IList<IList<T>> AA, IList<IList<T>> BB) where T : IEquatable<T>
+		{
+			IList<IList<T>> notInA = [], notInB = [];
+			foreach (var B in BB)
+			{
+				if (!SetListContains(AA, B))
+				{
+					notInA.Add(B);
+				}
+			}
+			foreach (var A in AA)
+			{
+				if (!SetListContains(BB, A))
+				{
+					notInB.Add(A);
+				}
+			}
+			return (notInA, notInB);
+		}
 		//public static bool IsMirror<T>(IList<T> A, IList<T> B) where T : IEquatable<T>
 		//{
 		//	if (A is null)
@@ -121,26 +225,6 @@ namespace ConsoleApp1
 				var a = A[i];
 				var b = B[i];
 				if (!a.SequenceEqual(b))//IsMirror(a, b)
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-		public static bool AreSameSet<T>(IList<T> A, IList<T> B) where T : IEquatable<T>
-		{
-			if (A.Count != B.Count)
-			{
-				return false;
-			}
-			var len = A.Count;
-			var la = A.ToList();
-			la.Sort();
-			var lb = B.ToList();
-			lb.Sort();
-			for (int j = 0; j < len; j++)
-			{
-				if (!la[j].Equals(lb[j]))
 				{
 					return false;
 				}
