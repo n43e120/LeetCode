@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<!--
+    <DefineConstants>MYDEBUG_IS_WORDY;name2</DefineConstants>
+    -->
   </PropertyGroup>
 
   <ItemGroup>

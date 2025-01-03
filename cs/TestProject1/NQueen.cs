@@ -3,7 +3,6 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
 using System.Text;
 namespace NQueen;
 /// <summary>
@@ -14,6 +13,10 @@ public unsafe static class NativeBitmap<T> where T : unmanaged, IBinaryInteger<T
 {
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void SetBitAt(T* p, int iBit) => *p |= T.One << iBit;
+	public static bool GetBitAt(void* ptr, int iBit)
+	{
+		return ((*(T*)ptr) & (T.One << iBit)) == T.One;
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void SetBitRange(T* p, int iBitStart, int cnt)
 	{
@@ -229,7 +232,7 @@ public unsafe static class MultiBlockBitmap<T> where T : unmanaged, IBinaryInteg
 	{
 		T* p = (T*)ptr;
 		(var q, var iBit) = Math.DivRem(iBitStart, cntBits_BLOCK);
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 		var debugSpan = new Span<byte>(p, 8);
 #endif
 		if (iBit + cnt <= cntBits_BLOCK)
@@ -262,7 +265,7 @@ public unsafe static class MultiBlockBitmap<T> where T : unmanaged, IBinaryInteg
 		(var q, var r) = Math.DivRem(iBitCur, cntBits_BLOCK);
 
 		var idx = NativeBitmap<T>.NextZeroBit(p + q, r);
-		r = 0;
+		r = -1;
 		while (idx == -1)
 		{
 			q++;
@@ -711,6 +714,38 @@ public unsafe static class NQueenDebugger
 			Console.WriteLine();
 		}
 	}
+	public static void PrintSolution(IList<int> solution, int n)
+	{
+		var lines = Solution.FromIndexArray(solution, n, n);
+		foreach (var line in lines)
+		{
+			Console.WriteLine(line);
+		}
+		Console.Write("------");
+		Print(solution);
+		Console.WriteLine();
+	}
+	public static bool IsArrayStartWith(Span<int> array, Span<int> tester)
+	{
+		for (int i = 0; i < tester.Length; i++)
+		{
+			if (array[i] != tester[i]) { return false; }
+		}
+		return true;
+	}
+	public static int[] FlipY(NQueenData data, int[] Queens)
+	{
+		var w = data.iWidth;
+		var h = data.iHeight;
+		var list = new List<int>();
+		foreach (int q in Queens)
+		{
+			(var iRow, var iCol) = Math.DivRem(q, w);
+			list.Add((h - 1 - iRow) * w + iCol);
+		}
+		list.Sort();
+		return list.ToArray();
+	}
 }
 public abstract unsafe class Solver
 {
@@ -753,14 +788,14 @@ public unsafe class SolverNative<T> : Solver where T : unmanaged, IBinaryInteger
 			if (bSuccess)
 			{
 				isomorphicGroup.Add(NativeBitmap<T>.ToIndexArray(x));
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 				//Console.Write(NativeBitmap<T>.ToDebugString(x, w, h));
 				Console.WriteLine($"---Add count:{hs.Count}");
 #endif
 			}
 			else
 			{
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 				Console.WriteLine($"Add fail");
 #endif
 			}
@@ -786,7 +821,7 @@ public unsafe class SolverNative<T> : Solver where T : unmanaged, IBinaryInteger
 		if (iBit == 0) return;
 		T bitmap = default(T);
 		NativeBitmap<T>.SetBitRange(&bitmap, 0, iBit);
-		NativeBitmap<T>.SetBitRange(&bitmap, w - 1 - iBit, iBit);
+		NativeBitmap<T>.SetBitRange(&bitmap, w - iBit, iBit);
 		bitmap |= bitmap << (NativeBitmap<T>.cntBit_T - w);
 		bitmap |= NativeBitmap<T>.Rotate90(bitmap, w, h);
 		*(T*)m_data.QUEEN_CACHE = bitmap;
@@ -957,7 +992,7 @@ public unsafe static class XYTupleByteArray
 			//Console.Write("temp{");
 			//Console.WriteLine(SparseBitArrayToString(temp, data.iWidth, cnt));
 			fBitOp((nint)pSrc, data.iWidth, data.iHeight, (nint)temp, cnt);
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 			Console.Write($"{fBitOp.Method.Name}->");
 			Console.WriteLine(PtrToString(temp, data.iWidth, cnt));
 #endif
@@ -966,7 +1001,7 @@ public unsafe static class XYTupleByteArray
 			{
 				p[temp[i] >> LEN_HALF] = temp[i];
 			}
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 			Console.Write($"Sort->");
 			Console.WriteLine(PtrToString(p, data.iWidth, cnt));
 #endif
@@ -1153,14 +1188,14 @@ public unsafe class SolverMultiBlock : Solver
 			if (bSuccess)
 			{
 				isomorphicGroup.Add(XYTupleByteArray.ToIndexArray(x, w, cntQueens));
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 				Console.WriteLine($"Add count:{hs.Count}");
 				Console.WriteLine(XYTupleByteArray.ToDebugString(x, w, cntQueens));
 #endif
 			}
 			else
 			{
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 				Console.WriteLine($"Add fail");
 #endif
 			}
@@ -1247,7 +1282,7 @@ public static class NQueenSolver
 
 		public int NonIsomorphicSolutionCount => IsomorphicGroups.Count;
 
-		public IEnumerable<int[]> Solutions()
+		public IEnumerable<IList<int>> Solutions()
 		{
 			foreach (var group in IsomorphicGroups)
 			{
@@ -1258,7 +1293,7 @@ public static class NQueenSolver
 			}
 		}
 	}
-	public static unsafe SolutionInfo All(int n, bool preferMultiBlock = false)
+	public static unsafe SolutionInfo All(int n, bool preferMultiBlock = false, bool preferTrimCorners = false)
 	{
 		var info = new SolutionInfo(n);
 		switch (n)
@@ -1283,16 +1318,22 @@ public static class NQueenSolver
 		void fPrintCurrentQueenSightToCache()
 		{
 			s.fPrintQueenSight(data, data.QueenCache_GetAt(iQ), iBit);
-#if DEBUG
+#if MYDEBUG_IS_WORDY
 			//NQueenDebugger.PrintCurrentGameStatus(data, iQ, Queens);
 #endif
 		}
-
+//#if DEBUG
+//		int[] breakarray = [2, 14, 25, 31, 36, 53, 60, 64, 75];
+//		var spanbreak = breakarray[..^2];
+//#endif
 		do
 		{
 			data.QueenCache_ClearAt(iQ);
 			iBit = Queens[iQ];
-			//s.PrintVisitedCornerToCache(iBit);
+			if (preferTrimCorners)
+			{
+				s.PrintVisitedCornerToCache(iBit);
+			}
 			fPrintCurrentQueenSightToCache();
 		NEXT_Q:
 			iQ++;
@@ -1307,6 +1348,14 @@ public static class NQueenSolver
 				}
 				Queens[iQ] = iBit;
 				fPrintCurrentQueenSightToCache();
+//#if DEBUG
+//				if (NQueenDebugger.IsArrayStartWith(Queens, spanbreak))
+//				{
+//					NQueenDebugger.PrintCurrentGameStatus(data, 0, Queens);
+//					NQueenDebugger.PrintCurrentGameStatus(data, iQ, Queens);
+//					Debugger.Break();
+//				}
+//#endif
 				goto NEXT_Q;
 			}
 		YIELD_AGAIN:
@@ -1348,8 +1397,9 @@ public static class NQueenSolver
 /// </summary>
 public class Solution
 {
-	public static IList<string> FromIndexArray(int[] indice, int w, int h)
+	public static IList<string> FromIndexArray(IList<int> indice, int w, int h)
 	{
+		var cntQueens = indice.Count;
 		int i = 0;
 		List<string> r = new(h);
 		var iData = 0;
@@ -1363,7 +1413,7 @@ public class Solution
 				{
 					line.Append('Q');
 					iData++;
-					if (iData < indice.Length)
+					if (iData < cntQueens)
 					{
 						idx_target = indice[iData];
 					}
@@ -1391,18 +1441,6 @@ public class Solution
 			var x = FromIndexArray(indice, n, n);
 			r.Add(x);
 		}
-		//#if DEBUG
-		//		foreach (var b in info.Solutions)
-		//		{
-		//			foreach (var c in b)
-		//			{
-		//				Console.WriteLine(c);
-		//			}
-		//			Console.WriteLine("------");
-		//		}
-		//		Console.WriteLine($"Total Solution:{info.Solutions.Count}");
-		//		Console.WriteLine($"Non-Isomorphic:{info.NonIsomorphicSolutionCount}");
-		//#endif
 		return r;
 	}
 }
