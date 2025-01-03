@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -714,6 +715,7 @@ public unsafe static class NQueenDebugger
 			Console.WriteLine();
 		}
 	}
+#if DEBUG
 	public static void PrintSolution(IList<int> solution, int n)
 	{
 		var lines = Solution.FromIndexArray(solution, n, n);
@@ -725,6 +727,7 @@ public unsafe static class NQueenDebugger
 		Print(solution);
 		Console.WriteLine();
 	}
+#endif
 	public static bool IsArrayStartWith(Span<int> array, Span<int> tester)
 	{
 		for (int i = 0; i < tester.Length; i++)
@@ -1322,10 +1325,10 @@ public static class NQueenSolver
 			//NQueenDebugger.PrintCurrentGameStatus(data, iQ, Queens);
 #endif
 		}
-//#if DEBUG
-//		int[] breakarray = [2, 14, 25, 31, 36, 53, 60, 64, 75];
-//		var spanbreak = breakarray[..^2];
-//#endif
+		//#if DEBUG
+		//		int[] breakarray = [2, 14, 25, 31, 36, 53, 60, 64, 75];
+		//		var spanbreak = breakarray[..^2];
+		//#endif
 		do
 		{
 			data.QueenCache_ClearAt(iQ);
@@ -1348,14 +1351,14 @@ public static class NQueenSolver
 				}
 				Queens[iQ] = iBit;
 				fPrintCurrentQueenSightToCache();
-//#if DEBUG
-//				if (NQueenDebugger.IsArrayStartWith(Queens, spanbreak))
-//				{
-//					NQueenDebugger.PrintCurrentGameStatus(data, 0, Queens);
-//					NQueenDebugger.PrintCurrentGameStatus(data, iQ, Queens);
-//					Debugger.Break();
-//				}
-//#endif
+				//#if DEBUG
+				//				if (NQueenDebugger.IsArrayStartWith(Queens, spanbreak))
+				//				{
+				//					NQueenDebugger.PrintCurrentGameStatus(data, 0, Queens);
+				//					NQueenDebugger.PrintCurrentGameStatus(data, iQ, Queens);
+				//					Debugger.Break();
+				//				}
+				//#endif
 				goto NEXT_Q;
 			}
 		YIELD_AGAIN:
@@ -1392,9 +1395,6 @@ public static class NQueenSolver
 		return info;
 	}
 }
-/// <summary>
-/// _leetCode_51 N-Queens
-/// </summary>
 public class Solution
 {
 	public static IList<string> FromIndexArray(IList<int> indice, int w, int h)
@@ -1432,6 +1432,9 @@ public class Solution
 		}
 		return r;
 	}
+	/// <summary>
+	/// _leetCode_51 N-Queens
+	/// </summary>
 	public IList<IList<string>> SolveNQueens(int n, bool prefer = false)
 	{
 		var r = new List<IList<string>>();
@@ -1442,5 +1445,14 @@ public class Solution
 			r.Add(x);
 		}
 		return r;
+	}
+	/// <summary>
+	/// _leetCode_52 N-Queens II
+	/// </summary>
+	public int TotalNQueens(int n)
+	{
+		var r = new List<IList<string>>();
+		var info = NQueenSolver.All(n, false, true);
+		return info.Count;
 	}
 }
